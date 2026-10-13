@@ -23,6 +23,11 @@ Vector3::Vector3(const Vector3 &other)
     : x(other.x), y(other.y), z(other.z) 
     {}
     
+Vector3::Vector3(const Point3 &other)
+    : x(other.x), y(other.y), z(other.z)
+    {}
+
+
 // equality operator
 bool Vector3::operator ==(const Vector3 &other) const
     { // Vector3::operator ==()
@@ -167,8 +172,8 @@ Point3 operator +(const Point3 &left, const Vector3 &right)
     Point3 returnVal;
 
     returnVal.x = left.x + right.x;
-    returnVal.x = left.y + right.y;
-    returnVal.x = left.z + right.z;
+    returnVal.y = left.y + right.y;
+    returnVal.z = left.z + right.z;
 
     return returnVal;
     } // operator +()
@@ -179,8 +184,8 @@ Vector3 operator -(const Point3 &left, const Point3 &right)
     Vector3 returnVal;
 
     returnVal.x = left.x - right.x;
-    returnVal.x = left.y - right.y;
-    returnVal.x = left.z - right.z;
+    returnVal.y = left.y - right.y;
+    returnVal.z = left.z - right.z;
 
     return returnVal;
     } // operator -()

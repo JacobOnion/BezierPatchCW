@@ -898,7 +898,11 @@ ControlPoints.o: ControlPoints.cpp ControlPoints.h \
 Draw.o: Draw.cpp Draw.hpp \
 		RGBAImage.h \
 		RGBAValue.h \
-		Point3.h
+		Point3.h \
+		Matrix4.h \
+		Vector3.h \
+		Homogeneous4.h \
+		Quaternion.h
 	$(CXX) -c $(CXXFLAGS) $(INCPATH) -o Draw.o Draw.cpp
 
 Homogeneous4.o: Homogeneous4.cpp Homogeneous4.h \

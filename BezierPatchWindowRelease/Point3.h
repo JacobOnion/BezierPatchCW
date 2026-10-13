@@ -42,6 +42,9 @@ class Point3
     float &operator [] (const int index);
     const float &operator [] (const int index) const;
 
+    // scalar multiplication
+    Point3 operator *(float factor) const;
+
     }; // Point3
 
 

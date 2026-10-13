@@ -69,7 +69,6 @@ int main(int argc, char **argv)
     RenderController renderController(&bezierPatch, &renderParameters, &renderWindow);
 
     TestFunc();
-    DrawAxes();
 
     //  set the initial size
     renderWindow.resize(1600, 720);

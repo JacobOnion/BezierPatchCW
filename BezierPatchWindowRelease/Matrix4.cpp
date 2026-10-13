@@ -58,7 +58,7 @@ Matrix4 Matrix4::operator *(float factor) const
     // TODO: multiply by the factor
     for (int row = 0; row < 4; row++)
         for (int col = 0; col < 4; col++)
-            returnMatrix.coordinates[row][col] *= factor;
+            returnMatrix.coordinates[row][col] = coordinates[row][col] * factor;
 
     // and return it
     return returnMatrix;
@@ -89,6 +89,16 @@ Point3 Matrix4::operator *(const Vector3 &vector) const
     // then divide back through
     return productVector.Point();
     } // cartesian multiplication
+
+Point3 Matrix4::operator *(const Point3 &vector) const
+    { // cartesian multiplication
+    // convert to Homogeneous coords and multiply
+    Homogeneous4 productVector = (*this) * Homogeneous4(vector);
+
+    // then divide back through
+    return productVector.Point();
+    } // cartesian multiplication
+
 
 // matrix operations
 // addition operator

@@ -69,6 +69,7 @@ class Matrix4
 
     // and on Cartesian coordinates
     Point3 operator *(const Vector3 &vector) const;
+    Point3 operator *(const Point3 &vector) const;
 
     // matrix operations
     // addition operator

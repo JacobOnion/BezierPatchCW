@@ -31,6 +31,8 @@
 #include "RGBAImage.h"
 #include "Draw.hpp"
 
+#include "Matrix4.h"
+
 
 // class for a render widget with arcball linked to an external arcball widget
 class BezierPatchRenderWidget : public QOpenGLWidget
