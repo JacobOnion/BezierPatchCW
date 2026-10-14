@@ -28,3 +28,7 @@ void DrawCircle(RGBAImage& frameBuffer, Point3& origin, float radius, RGBAValue&
 void DrawGrid(RGBAImage& frameBuffer, const Matrix4& rot,float size, int segments, RGBAValue& colour, Vector3 transVector, const Matrix4& proj);
 
 void DrawBezier(RGBAImage& frameBuffer, const Matrix4& mvp, std::vector<Point3> points);
+
+static Point3 deCasteljau(Point3 p0, Point3 p1, Point3 p2, Point3 p3, float t);
+
+void DrawBezierPatch(RGBAImage& frameBuffer, std::vector<Point3> points);

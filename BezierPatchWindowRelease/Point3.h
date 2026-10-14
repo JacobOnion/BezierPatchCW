@@ -47,6 +47,8 @@ class Point3
 
     }; // Point3
 
+// multiplication by scalar
+Point3 operator *(float factor, const Point3 &right);
 
 // stream input
 std::istream & operator >> (std::istream &inStream, Point3 &value);

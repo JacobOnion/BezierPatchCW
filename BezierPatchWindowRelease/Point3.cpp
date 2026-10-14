@@ -80,6 +80,15 @@ Point3 Point3::operator *(float factor) const
     return returnVal;
     } // Vector3::operator *()
 
+Point3 operator *(float factor, const Point3 &right)
+    { // operator *
+    Point3 returnVal;
+
+        returnVal = right * factor;
+
+    return returnVal;
+    } // operator *
+
 
 // stream input
 std::istream & operator >> (std::istream &inStream, Point3 &value)

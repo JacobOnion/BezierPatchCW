@@ -252,10 +252,14 @@ void BezierPatchRenderWidget::paintGL()
     //DrawCircle(frameBuffer, circle1, 5.f, blue);
 
     // Project vertices into clip space
-    std::vector<Point3> projectedPoints;     
+    std::vector<Point3> projectedPoints;
+    std::vector<int> pointRadii;
     for(int i = 0 ; i < (*patchControlPoints).vertices.size(); i++)
     {
-        Point3 vertexPos = mvp * renderParameters->patchControlPoints->vertices[i];
+        Homogeneous4 vertexCoords = mvp * renderParameters->patchControlPoints->vertices[i];
+        float radius = (40.f / vertexCoords.w) * (frameBuffer.width / 2.f);
+        pointRadii.push_back(round(radius));
+        Point3 vertexPos = vertexCoords.Point();
         projectedPoints.push_back(vertexPos);
     }
 
@@ -279,9 +283,13 @@ void BezierPatchRenderWidget::paintGL()
             
             //Point3 vertexPos = mvp * renderParameters->patchControlPoints->vertices[i];
             
-            float radius = (proj * Vector3(40.f, 0.f, 0.f)).x;
+            //float radius = (proj * Vector3(40.f, 0.f, 0.f)).x;
+            //float radius = 40.f * 
+            //radius = 5.f;
+            //if (!renderParameters->orthoProjection)
+            //    radius /= 5.f;
 
-            DrawCircle(frameBuffer, projectedPoints[i], radius, currentColour); // Draw red circle
+            DrawCircle(frameBuffer, projectedPoints[i], pointRadii[i], currentColour); // Draw red circle
         }
     }// UI control for showing vertices
 
@@ -329,7 +337,8 @@ void BezierPatchRenderWidget::paintGL()
 
     if(renderParameters->bezierEnabled)
     {// UI control for showing the Bezier curve
-        DrawBezier(frameBuffer, mvp, projectedPoints);
+        //DrawBezier(frameBuffer, mvp, projectedPoints);
+        DrawBezierPatch(frameBuffer, projectedPoints);
         for (float s = 0.0; s <= 1.0; s += 0.01)
         {// s parameter loop
 

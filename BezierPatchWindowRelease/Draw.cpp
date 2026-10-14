@@ -216,20 +216,25 @@ void DrawBezier(RGBAImage& frameBuffer, const Matrix4& mvp, std::vector<Point3> 
 {
     RGBAValue red = RGBAValue(255.f, 0.f, 0.f);
 
+    // NDC to pixel
     for (int i = 0; i < points.size(); i++)
     {
         std::cout << "projected point [" << i << "] " << points[i] << std::endl;
+        points[i].x = round(((points[i].x + 1) / 2) * frameBuffer.width - 1);
+        points[i].y = round(((points[i].y + 1) / 2) * frameBuffer.height - 1);
+        std::cout << "pixel point [" << i << "] " << points[i] << std::endl;
     }
 
+    // Assign starting data
     int N_PTS = 4;
     Point3 bezPoints[N_PTS][N_PTS];
-    bezPoints[0][0] = points[0];
-    bezPoints[0][1] = points[4];
-    bezPoints[0][2] = points[8];
-    bezPoints[0][3] = points[12];
+    bezPoints[0][3] = points[0];
+    bezPoints[1][2] = points[4];
+    bezPoints[2][1] = points[8];
+    bezPoints[3][0] = points[12];
         
 
-    for (float t = 0.f; t <= 1.0f; t += 0.01f)
+    for (float t = 0.f; t <= 1.0f; t += 0.001f)
     { //Parametric loop
         for (int diag = N_PTS - 2; diag >= 0; diag--)
         { // diagonal loop
@@ -239,6 +244,86 @@ void DrawBezier(RGBAImage& frameBuffer, const Matrix4& mvp, std::vector<Point3> 
                 bezPoints[i][j] = bezPoints[i][j+1] * (1.0f-t) + bezPoints[i+1][j] * t;
             }
         }
-        //frameBuffer[bezPoints[0][0].y][bezPoints[0][0].x] = red;
+        if ( bezPoints[0][0].y >= frameBuffer.height || bezPoints[0][0].x >= frameBuffer.width)
+            continue;
+        if ( bezPoints[0][0].y < 0 || bezPoints[0][0].x < 0)
+            continue;
+        frameBuffer[(int)bezPoints[0][0].y][(int)bezPoints[0][0].x] = RGBAValue(t*255.f, 127.5f, t*255.f);
     }
+}
+
+static Point3 deCasteljau(Point3 p0, Point3 p1, Point3 p2, Point3 p3, float t)
+{
+    Point3 a = (1.f - t) * p0 + t * p1;
+    Point3 b = (1.f - t) * p1 + t * p2;
+    Point3 c = (1.f - t) * p2 + t * p3;
+    Point3 d = (1.f - t) * a + t * b;
+    Point3 e = (1.f - t) * b + t * c;
+    return (1.f - t) * d + t * e;
+}
+
+void DrawBezierPatch(RGBAImage& frameBuffer, std::vector<Point3> points)
+{
+    RGBAValue red = RGBAValue(255.f, 0.f, 0.f);
+
+    // NDC to pixel
+    for (int i = 0; i < points.size(); i++)
+    {
+        std::cout << "projected point [" << i << "] " << points[i] << std::endl;
+        points[i].x = round(((points[i].x + 1) / 2) * frameBuffer.width - 1);
+        points[i].y = round(((points[i].y + 1) / 2) * frameBuffer.height - 1);
+        std::cout << "pixel point [" << i << "] " << points[i] << std::endl;
+    }
+    
+    for (float s = 0; s < 1.f; s += 0.003f)
+    { // Paramtric loop
+        for (float t = 0; t < 1.f; t += 0.003f)
+        { // Parametric loop
+            Point3 q[4];
+            for (int i = 0; i < 4; i++)
+            {
+                q[i] = deCasteljau(points[4*i], points[4*i+1], points[4*i+2], points[4*i+3], s);
+            }
+            Point3 p = deCasteljau(q[0], q[1], q[2], q[3], t);
+
+            if ( p.y >= frameBuffer.height || p.x >= frameBuffer.width)
+                continue;
+            if ( p.y < 0 || p.x < 0)
+                continue;
+            frameBuffer[(int)p.y][(int)p.x] = RGBAValue(s*255.f, 127.5f, t*255.f);
+
+        }
+    }
+
+    // Assign starting data
+    /*int N_PTS = 4;
+    Point3 bezPoints[N_PTS][N_PTS][N_PTS];
+    bezPoints[0][3] = points[0];
+    bezPoints[1][2] = points[4];
+    bezPoints[2][1] = points[8];
+    bezPoints[3][0] = points[12];
+        
+    for (float s = 0.0f; s <= 1.0f; s += 0.01f)
+    { // Parameteric loop
+        for (float t = 0.f; t <= 1.0f; t += 0.01f)
+        { //Parametric loop
+            float u = 1.0f - s - t;
+            for (int diag = N_PTS - 1; diag >= 0; diag--)
+            { // diagonal loop
+                for (int i = 0; i <= diag; i++)
+                { // i loop
+                    for (int j = 0; j <=diag - i; j++)
+                    { // j loop
+                        int k = diag - i - j;
+                        bezPoints[i][j][k] = bezPoints[i+1][j][k] * s + bezPoints[i][j+1][k] * t + bezPoints[i][j][k+1] * u;
+                    }
+                }
+            }
+            if ( bezPoints[0][0][0].y >= frameBuffer.height || bezPoints[0][0][0].x >= frameBuffer.width)
+                continue;
+            if ( bezPoints[0][0][0].y < 0 || bezPoints[0][0][0].x < 0)
+                continue;
+            frameBuffer[(int)bezPoints[0][0][0].y][(int)bezPoints[0][0][0].x] = RGBAValue(s, 127.5f, t);
+        }   
+    }*/
 }
