@@ -245,20 +245,35 @@ void BezierPatchRenderWidget::paintGL()
         ProjectPoint(circle1, camOffset);
     }*/
     
-    DrawLine(frameBuffer, origin, x, red);
-    DrawLine(frameBuffer, origin, y, green);
-    DrawLine(frameBuffer, origin, z, blue);
+    //DrawLine(frameBuffer, origin, x, red);
+    //DrawLine(frameBuffer, origin, y, green);
+    //DrawLine(frameBuffer, origin, z, blue);
     
     //DrawCircle(frameBuffer, circle1, 5.f, blue);
 
     // Project vertices into clip space
     std::vector<Point3> projectedPoints;
     std::vector<int> pointRadii;
+    
+    float worldRadius = 1.25f;
+    if (!renderParameters->orthoProjection)
+        worldRadius /= 10.f;
+    const float halfWidth = frameBuffer.width / 2.f;
+
     for(int i = 0 ; i < (*patchControlPoints).vertices.size(); i++)
     {
-        Homogeneous4 vertexCoords = mvp * renderParameters->patchControlPoints->vertices[i];
-        float radius = (40.f / vertexCoords.w) * (frameBuffer.width / 2.f);
-        pointRadii.push_back(round(radius));
+        Homogeneous4 vertexCoords = mvp * Homogeneous4(renderParameters->patchControlPoints->vertices[i]);
+        //std::cout << vertexCoords.w << std::endl;
+        //float radius = 20.f * ((2.f * 0.01f) / (aspectRatio * (10.f/renderParameters->zTranslate) - -aspectRatio * (10.f/renderParameters->zTranslate))) / vertexCoords.w;
+        //radius = radius * (frameBuffer.width / 2.f);
+        //float radius = 0.05f * (frameBuffer.height / vertexCoords.z);
+        float radius = 0;
+        // bit hacky, use different methods of calculating radii depending on which projection is being used
+        if (renderParameters->orthoProjection)
+            radius = (proj * Vector3(40.f, 0.f, 0.f)).x;
+        else
+            radius = worldRadius * proj[0][0] / vertexCoords.w * halfWidth;
+        pointRadii.push_back(radius);
         Point3 vertexPos = vertexCoords.Point();
         projectedPoints.push_back(vertexPos);
     }

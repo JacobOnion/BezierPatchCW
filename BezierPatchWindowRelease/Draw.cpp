@@ -267,17 +267,17 @@ void DrawBezierPatch(RGBAImage& frameBuffer, std::vector<Point3> points)
     RGBAValue red = RGBAValue(255.f, 0.f, 0.f);
 
     // NDC to pixel
-    for (int i = 0; i < points.size(); i++)
+    /*for (int i = 0; i < points.size(); i++)
     {
         std::cout << "projected point [" << i << "] " << points[i] << std::endl;
         points[i].x = round(((points[i].x + 1) / 2) * frameBuffer.width - 1);
         points[i].y = round(((points[i].y + 1) / 2) * frameBuffer.height - 1);
         std::cout << "pixel point [" << i << "] " << points[i] << std::endl;
-    }
+    }*/
     
-    for (float s = 0; s < 1.f; s += 0.003f)
+    for (float s = 0; s < 1.f; s += 0.01f)
     { // Paramtric loop
-        for (float t = 0; t < 1.f; t += 0.003f)
+        for (float t = 0; t < 1.f; t += 0.01f)
         { // Parametric loop
             Point3 q[4];
             for (int i = 0; i < 4; i++)
@@ -290,8 +290,9 @@ void DrawBezierPatch(RGBAImage& frameBuffer, std::vector<Point3> points)
                 continue;
             if ( p.y < 0 || p.x < 0)
                 continue;
-            frameBuffer[(int)p.y][(int)p.x] = RGBAValue(s*255.f, 127.5f, t*255.f);
-
+            RGBAValue pointCol = RGBAValue(s*255.f, 127.5f, t*255.f);
+            //frameBuffer[(int)p.y][(int)p.x] = RGBAValue(s*255.f, 127.5f, t*255.f);
+            DrawCircle(frameBuffer, p, 5.f, pointCol);
         }
     }
 
