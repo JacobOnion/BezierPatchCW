@@ -49,6 +49,25 @@ Matrix4 MakeFrustum(double left, double right, double bottom, double top, double
 }
 
 
+// Returns false if the segment is entirely behind the near plane.
+bool ClipNear(Homogeneous4& a, Homogeneous4& b)
+{
+    float da = a.z + a.w;
+    float db = b.z + b.w;
+    if (da < 0.f && db < 0.f) return false;
+    if (da >= 0.f && db >= 0.f) return true;
+
+    float t = da / (da - db);
+    Homogeneous4 p(a.x + t * (b.x - a.x),
+                   a.y + t * (b.y - a.y),
+                   a.z + t * (b.z - a.z),
+                   a.w + t * (b.w - a.w));
+    if (da < 0.f) a = p; else b = p;
+    return true;
+}
+
+
+
 void ProjectPoint(Point3& point, float camOffset)
 {
     
@@ -117,8 +136,16 @@ void DrawCircle(RGBAImage& frameBuffer, Point3& origin, float radius, RGBAValue&
     int y0 = round(((origin.y + 1) / 2) * frameBuffer.height - 1);
 
     int x = 0;
-    int y = radius;
+    int y = (int)round(radius);
     int d = 1 - radius;
+
+    auto span = [&](int y, int left, int right) {
+        if (y < 0 || y >= frameBuffer.height) return;
+        left = max(left, 0);
+        right = min(right, (int)(frameBuffer.width - 1));
+        for (int i = left; i <= right; i++)
+            frameBuffer[y][i] = colour;
+    };
 
     while(x <= y) {
         
@@ -127,7 +154,13 @@ void DrawCircle(RGBAImage& frameBuffer, Point3& origin, float radius, RGBAValue&
         int maxX = y0 + x;
         int minX = y0 - x;
 
-        if (minY >= 0 && minY < frameBuffer.height && maxY >= 0 && maxY < frameBuffer.height)
+        span(maxY, x0 - x, x0 + x);
+        span(minY, x0 - x, x0 + x);
+        span(maxX, x0 - y, x0 + y);
+        span(minX, x0 - y, x0 + y);
+
+
+        /*if (minY >= 0 && minY < frameBuffer.height && maxY >= 0 && maxY < frameBuffer.height)
         {
             int left = max(0, x0-x);
             int right = min((int)frameBuffer.width, x0+x);
@@ -148,7 +181,7 @@ void DrawCircle(RGBAImage& frameBuffer, Point3& origin, float radius, RGBAValue&
                 frameBuffer[maxX][i] = colour;
                 frameBuffer[minX][i] = colour;
             }
-        }
+        }*/
 
 
         x++;
@@ -197,16 +230,18 @@ void DrawGrid(RGBAImage& frameBuffer, const Matrix4& rot,float size, int segment
 
     for (int i = 0; i <= segments; i++)
         {
-            Point3 projYStart = proj * yStart;
-            Point3 projYEnd = proj * yEnd;
-            DrawLine(frameBuffer, projYStart, projYEnd, colour);
+            Homogeneous4 projYStart = proj * Homogeneous4(yStart);
+            Homogeneous4 projYEnd = proj * Homogeneous4(yEnd);
+            if (ClipNear(projYStart, projYEnd))
+                DrawLine(frameBuffer, projYStart.Point(), projYEnd.Point(), colour);
             yStart = yStart + xStep;
             yEnd = yEnd + xStep;
 
 
-            Point3 projXStart = proj * xStart;
-            Point3 projXEnd = proj * xEnd;
-            DrawLine(frameBuffer, projXStart, projXEnd, colour);
+            Homogeneous4 projXStart = proj * Homogeneous4(xStart);
+            Homogeneous4 projXEnd = proj * Homogeneous4(xEnd);
+            if (ClipNear(projXStart, projXEnd))
+                DrawLine(frameBuffer, projXStart.Point(), projXEnd.Point(), colour);
             xStart = xStart + yStep;
             xEnd = xEnd + yStep;
         }
@@ -252,79 +287,87 @@ void DrawBezier(RGBAImage& frameBuffer, const Matrix4& mvp, std::vector<Point3> 
     }
 }
 
-static Point3 deCasteljau(Point3 p0, Point3 p1, Point3 p2, Point3 p3, float t)
+// Blend pairs of points to ind the average of the 4 points at t
+static Homogeneous4 deCasteljau(Homogeneous4 p0, Homogeneous4 p1, Homogeneous4 p2, Homogeneous4 p3, float t)
 {
-    Point3 a = (1.f - t) * p0 + t * p1;
-    Point3 b = (1.f - t) * p1 + t * p2;
-    Point3 c = (1.f - t) * p2 + t * p3;
-    Point3 d = (1.f - t) * a + t * b;
-    Point3 e = (1.f - t) * b + t * c;
+    Homogeneous4 a = (1.f - t) * p0 + t * p1;
+    Homogeneous4 b = (1.f - t) * p1 + t * p2;
+    Homogeneous4 c = (1.f - t) * p2 + t * p3;
+    Homogeneous4 d = (1.f - t) * a + t * b;
+    Homogeneous4 e = (1.f - t) * b + t * c;
     return (1.f - t) * d + t * e;
 }
 
-void DrawBezierPatch(RGBAImage& frameBuffer, std::vector<Point3> points)
+void DrawBezierPatch(RGBAImage& frameBuffer, std::vector<Homogeneous4>& points, float radius, bool perspective)
 {
-    RGBAValue red = RGBAValue(255.f, 0.f, 0.f);
-
-    // NDC to pixel
-    /*for (int i = 0; i < points.size(); i++)
-    {
-        std::cout << "projected point [" << i << "] " << points[i] << std::endl;
-        points[i].x = round(((points[i].x + 1) / 2) * frameBuffer.width - 1);
-        points[i].y = round(((points[i].y + 1) / 2) * frameBuffer.height - 1);
-        std::cout << "pixel point [" << i << "] " << points[i] << std::endl;
-    }*/
-    
-    for (float s = 0; s < 1.f; s += 0.01f)
+    for (float s = 0; s < 1.f; s += 0.004f)
     { // Paramtric loop
-        for (float t = 0; t < 1.f; t += 0.01f)
+        for (float t = 0; t < 1.f; t += 0.004f)
         { // Parametric loop
-            Point3 q[4];
+            Homogeneous4 q[4];
             for (int i = 0; i < 4; i++)
-            {
+            { // Get one bezier point per row
                 q[i] = deCasteljau(points[4*i], points[4*i+1], points[4*i+2], points[4*i+3], s);
             }
-            Point3 p = deCasteljau(q[0], q[1], q[2], q[3], t);
+            // Blend the 4 rows to get the final point p
+            Homogeneous4 h = deCasteljau(q[0], q[1], q[2], q[3], t);
 
-            if ( p.y >= frameBuffer.height || p.x >= frameBuffer.width)
-                continue;
-            if ( p.y < 0 || p.x < 0)
-                continue;
-            RGBAValue pointCol = RGBAValue(s*255.f, 127.5f, t*255.f);
-            //frameBuffer[(int)p.y][(int)p.x] = RGBAValue(s*255.f, 127.5f, t*255.f);
-            DrawCircle(frameBuffer, p, 5.f, pointCol);
+            //if (h.z + h.w < 0.f || h.w <= 0.f)
+            //    continue;
+
+            // if ( p.y >= frameBuffer.height || p.x >= frameBuffer.width)
+            //     continue;
+            // if ( p.y < 0 || p.x < 0)
+            //     continue;
+            
+            Point3 p = h.Point();
+            float pointRad = radius;
+            if (perspective)
+                pointRad = radius / h.w;
+            else
+                pointRad /= 4.f;
+
+            RGBAValue pointCol = RGBAValue(t*255.f, 127.5f, s*255.f);
+            //frameBuffer[(int)p.y][(int)p.x] = pointCol;
+            DrawCircle(frameBuffer, p, pointRad, pointCol);  // Drawing with circles means less iterations but bezier has thickness
         }
     }
-
-    // Assign starting data
-    /*int N_PTS = 4;
-    Point3 bezPoints[N_PTS][N_PTS][N_PTS];
-    bezPoints[0][3] = points[0];
-    bezPoints[1][2] = points[4];
-    bezPoints[2][1] = points[8];
-    bezPoints[3][0] = points[12];
-        
-    for (float s = 0.0f; s <= 1.0f; s += 0.01f)
-    { // Parameteric loop
-        for (float t = 0.f; t <= 1.0f; t += 0.01f)
-        { //Parametric loop
-            float u = 1.0f - s - t;
-            for (int diag = N_PTS - 1; diag >= 0; diag--)
-            { // diagonal loop
-                for (int i = 0; i <= diag; i++)
-                { // i loop
-                    for (int j = 0; j <=diag - i; j++)
-                    { // j loop
-                        int k = diag - i - j;
-                        bezPoints[i][j][k] = bezPoints[i+1][j][k] * s + bezPoints[i][j+1][k] * t + bezPoints[i][j][k+1] * u;
-                    }
-                }
-            }
-            if ( bezPoints[0][0][0].y >= frameBuffer.height || bezPoints[0][0][0].x >= frameBuffer.width)
-                continue;
-            if ( bezPoints[0][0][0].y < 0 || bezPoints[0][0][0].x < 0)
-                continue;
-            frameBuffer[(int)bezPoints[0][0][0].y][(int)bezPoints[0][0][0].x] = RGBAValue(s, 127.5f, t);
-        }   
-    }*/
 }
+
+
+// void DrawBezierPatch(RGBAImage& frameBuffer, std::vector<Point3> points)
+// {
+//     RGBAValue red = RGBAValue(255.f, 0.f, 0.f);
+
+//     // NDC to pixel
+//     // for (int i = 0; i < points.size(); i++)
+//     // {
+//     //     std::cout << "projected point [" << i << "] " << points[i] << std::endl;
+//     //     points[i].x = round(((points[i].x + 1) / 2) * frameBuffer.width - 1);
+//     //     points[i].y = round(((points[i].y + 1) / 2) * frameBuffer.height - 1);
+//     //     std::cout << "pixel point [" << i << "] " << points[i] << std::endl;
+//     // }
+    
+//     for (float s = 0; s < 1.f; s += 0.005f)
+//     { // Paramtric loop
+//         for (float t = 0; t < 1.f; t += 0.005f)
+//         { // Parametric loop
+//             Point3 q[4];
+//             for (int i = 0; i < 4; i++)
+//             { // Get one bezier point per row
+//                 q[i] = deCasteljau(points[4*i], points[4*i+1], points[4*i+2], points[4*i+3], s);
+//             }
+//             // Blend the 4 rows to get the final point p
+//             Point3 p = deCasteljau(q[0], q[1], q[2], q[3], t);
+
+//             // if ( p.y >= frameBuffer.height || p.x >= frameBuffer.width)
+//             //     continue;
+//             // if ( p.y < 0 || p.x < 0)
+//             //     continue;
+                
+//             RGBAValue pointCol = RGBAValue(t*255.f, 127.5f, s*255.f);
+//             //frameBuffer[(int)p.y][(int)p.x] = pointCol;
+//             DrawCircle(frameBuffer, p, 3.f, pointCol);  // Drawing with circles means less iterations but bezier has thickness
+//         }
+//     }
+// }

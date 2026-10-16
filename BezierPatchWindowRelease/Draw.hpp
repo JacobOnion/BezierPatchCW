@@ -17,6 +17,8 @@ Matrix4 MakeOrtho(double left, double right, double bottom, double top, double n
 
 Matrix4 MakeFrustum(double left, double right, double bottom, double top, double near_val, double far_val);
 
+bool ClipNear(Homogeneous4& a, Homogeneous4& b);
+
 void ProjectPoint(Point3& point, float camOffset);
 
 Point3 GetProjectedPoint(Point3& point, float camOffset);
@@ -29,6 +31,6 @@ void DrawGrid(RGBAImage& frameBuffer, const Matrix4& rot,float size, int segment
 
 void DrawBezier(RGBAImage& frameBuffer, const Matrix4& mvp, std::vector<Point3> points);
 
-static Point3 deCasteljau(Point3 p0, Point3 p1, Point3 p2, Point3 p3, float t);
+static Homogeneous4 deCasteljau(Homogeneous4 p0, Homogeneous4 p1, Homogeneous4 p2, Homogeneous4 p3, float t);
 
-void DrawBezierPatch(RGBAImage& frameBuffer, std::vector<Point3> points);
+void DrawBezierPatch(RGBAImage& frameBuffer, std::vector<Homogeneous4>& points, float radius, bool perspective);

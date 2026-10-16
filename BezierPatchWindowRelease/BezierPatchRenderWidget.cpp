@@ -103,14 +103,17 @@ void BezierPatchRenderWidget::paintGL()
     // (glDrawPixels then puts the frameBuffer on the screen
     //   to display the final image at the end of paintGL)
 
+    QElapsedTimer frametimer;
+    frametimer.start();
     //glMatrixMode(GL_MODELVIEW);
     //glPushMatrix();
     //glLoadIdentity();
-
+    //#pragma omp parallel
+    //{
 
     // clear the (non-OpenGL) buffer where we will set pixels to:
     frameBuffer.clear(renderParameters->theClearColor);
-
+    //}
     /*for (int r = 50; r < 100; r++)
     for (int c = 50; c < 100; c++)
         frameBuffer[r][c] = RGBAValue(255, 0, 0, 255);*/
@@ -125,12 +128,13 @@ void BezierPatchRenderWidget::paintGL()
     glMatrixMode(GL_MODELVIEW);
     glPushMatrix();
     glLoadIdentity();
+    
+    //std::cout << "ready to begin new frame: " << frametimer.nsecsElapsed() / 1e6 << std::endl;
 
-
-    if(renderParameters->triggerResize)
-    {
-        this->resizeGL(renderParameters->windowWidth, renderParameters->windowHeight);
-    }
+    //if(renderParameters->triggerResize)
+    //{
+    //    this->resizeGL(renderParameters->windowWidth, renderParameters->windowHeight);
+    //}
 
     //std::cout<< "triggerResize: " << renderParameters->triggerResize << std::endl;
 
@@ -160,7 +164,6 @@ void BezierPatchRenderWidget::paintGL()
                     -10/renderParameters->zTranslate, 10/renderParameters->zTranslate,
                     0.01, 200.0);
         else
-            //proj = MakePerspective(1.4f);
             proj = MakeFrustum(-aspectRatio * 0.01, aspectRatio * 0.01,
                       -0.01, 0.01,
                       0.01, 200.0);
@@ -180,15 +183,8 @@ void BezierPatchRenderWidget::paintGL()
     
     mvp = proj * trans * currentRot;
 
-    //std::cout << renderParameters->modelviewMatrix << "\n" << std::endl;
+    //std::cout << "model view matrix calculated: " << frametimer.nsecsElapsed()/1e6 << std::endl;
     
-    
-
-    // square test
-    for(int y = 0; y < 10.f; y++)
-        for (int x = 0; x < 10.f; x++)
-            frameBuffer[y][x] = RGBAValue(255.f, 0.0f, 0.0f, 255.f);
-
 
     Point3 origin = Point3(0.f, 0.f, 0.f);
     Point3 x = Point3(5.f, 0.f, 0.f);
@@ -253,6 +249,7 @@ void BezierPatchRenderWidget::paintGL()
 
     // Project vertices into clip space
     std::vector<Point3> projectedPoints;
+    std::vector<Homogeneous4> clipPoints;
     std::vector<int> pointRadii;
     
     float worldRadius = 1.25f;
@@ -274,8 +271,20 @@ void BezierPatchRenderWidget::paintGL()
         else
             radius = worldRadius * proj[0][0] / vertexCoords.w * halfWidth;
         pointRadii.push_back(radius);
+
+
+        //if (vertexCoords[i].z + vertexCoords[i].w < 0.f)
+
+
+        /*if (vertexCoords.w < 0)
+        {
+            std::cout << vertexCoords.w << std::endl;
+            vertexCoords = vertexCoords * -1.f;
+        }*/
+        
         Point3 vertexPos = vertexCoords.Point();
         projectedPoints.push_back(vertexPos);
+        clipPoints.push_back(vertexCoords);
     }
 
     if(renderParameters->verticesEnabled)
@@ -288,10 +297,11 @@ void BezierPatchRenderWidget::paintGL()
             //  ... keep the others in white)
 
             // consider ways to make the rendered points bigger than just 1x1 pixel on the screen
-        
-            //for (int id = 0; id < 16; id++)
-            //{
-            //std::cout << "vertex: " << i << " pos: " << renderParameters->patchControlPoints->vertices[i] << " active:" << renderParameters->activeVertex << std::endl;
+            
+            // Skip vertices behind near plane
+            if (clipPoints[i].z + clipPoints[i].w < 0.f)
+                continue;
+
             RGBAValue currentColour = grey;
             if (i == renderParameters->activeVertex)
                 currentColour = red;
@@ -314,9 +324,18 @@ void BezierPatchRenderWidget::paintGL()
         for(int i = 0 ; i < (*patchControlPoints).vertices.size(); i++)
         {
             if ((i + 1) % 4 != 0)
-                DrawLine(frameBuffer, projectedPoints[i], projectedPoints[i+1], green);
+            {
+                // Clip lines to visible segments
+                Homogeneous4 a = clipPoints[i], b = clipPoints[i+1];
+                if (ClipNear(a, b))
+                    DrawLine(frameBuffer, a.Point(), b.Point(), green);                
+            }
             if (i < 12)
-                DrawLine(frameBuffer, projectedPoints[i], projectedPoints[i+4], green);
+            {
+                Homogeneous4 a = clipPoints[i], b = clipPoints[i+4];
+                if (ClipNear(a, b))
+                    DrawLine(frameBuffer, a.Point(), b.Point(), green);
+            }
         }
     }// UI control for showing the Bezier control net
 
@@ -353,21 +372,14 @@ void BezierPatchRenderWidget::paintGL()
     if(renderParameters->bezierEnabled)
     {// UI control for showing the Bezier curve
         //DrawBezier(frameBuffer, mvp, projectedPoints);
-        DrawBezierPatch(frameBuffer, projectedPoints);
-        for (float s = 0.0; s <= 1.0; s += 0.01)
-        {// s parameter loop
-
-            for (float t = 0.0; t <= 1.0; t += 0.01)
-            { // t parameter loop
-
-                // set the pixel for this parameter value using s, t for colour
-            } // t parameter loop
-        } // s parameter loop
+        DrawBezierPatch(frameBuffer, clipPoints, 10.f, !renderParameters->orthoProjection);
     }
 
     // Put the custom framebufer on the screen to display the image
     glDrawPixels(frameBuffer.width, frameBuffer.height, GL_RGBA, GL_UNSIGNED_BYTE, frameBuffer.block);
-
+        
+    std::cout << "total frame time: " << frametimer.nsecsElapsed()/1e9 << "s" << std::endl;
+    frametimer.restart();
 } // BezierPatchRenderWidget::paintGL()
 
 
