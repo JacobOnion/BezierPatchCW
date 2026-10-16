@@ -302,13 +302,13 @@ void DrawBezierPatch(RGBAImage& frameBuffer, std::vector<Homogeneous4>& points, 
 {
     for (float s = 0; s < 1.f; s += 0.004f)
     { // Paramtric loop
-        for (float t = 0; t < 1.f; t += 0.004f)
-        { // Parametric loop
-            Homogeneous4 q[4];
+        Homogeneous4 q[4];
             for (int i = 0; i < 4; i++)
             { // Get one bezier point per row
                 q[i] = deCasteljau(points[4*i], points[4*i+1], points[4*i+2], points[4*i+3], s);
             }
+        for (float t = 0; t < 1.f; t += 0.004f)
+        { // Parametric loop
             // Blend the 4 rows to get the final point p
             Homogeneous4 h = deCasteljau(q[0], q[1], q[2], q[3], t);
 
