@@ -111,12 +111,14 @@ void BezierPatchRenderWidget::paintGL()
     //#pragma omp parallel
     //{
 
-    // clear the (non-OpenGL) buffer where we will set pixels to:
+    // clear the buffers we will write fragments to:
     frameBuffer.clear(renderParameters->theClearColor);
-    //}
-    /*for (int r = 50; r < 100; r++)
-    for (int c = 50; c < 100; c++)
-        frameBuffer[r][c] = RGBAValue(255, 0, 0, 255);*/
+    FragmentBuffer fragBuffer;
+    fragBuffer.width = frameBuffer.width;
+    fragBuffer.height = frameBuffer.height;
+    fragBuffer.Clear();
+
+    
 
     // now clear the OpenGL buffer:
     glClearColor(0.8, 0.8, 0.6, 1.0);
@@ -276,7 +278,7 @@ void BezierPatchRenderWidget::paintGL()
             //if (!renderParameters->orthoProjection)
             //    radius /= 5.f;
 
-            DrawCircle(frameBuffer, projectedPoints[i], pointRadii[i], currentColour); // Draw red circle
+            DrawCircle(fragBuffer, projectedPoints[i], pointRadii[i], currentColour); // Draw red circle
         }
     }// UI control for showing vertices
 
@@ -290,13 +292,13 @@ void BezierPatchRenderWidget::paintGL()
                 // Clip lines to visible segments
                 Homogeneous4 a = clipPoints[i], b = clipPoints[i+1];
                 if (ClipNear(a, b))
-                    DrawLine(frameBuffer, a.Point(), b.Point(), green);                
+                    DrawLine(fragBuffer, a.Point(), b.Point(), green);                
             }
             if (i < 12)
             {
                 Homogeneous4 a = clipPoints[i], b = clipPoints[i+4];
                 if (ClipNear(a, b))
-                    DrawLine(frameBuffer, a.Point(), b.Point(), green);
+                    DrawLine(fragBuffer, a.Point(), b.Point(), green);
             }
         }
     }// UI control for showing the Bezier control net
@@ -325,17 +327,24 @@ void BezierPatchRenderWidget::paintGL()
         Matrix4 mvpZ = proj * trans * currentRot * XtoZ;
 
 
-        DrawGrid(frameBuffer, currentRot, 10.f, 10, yellow, translationVector, proj);
-        DrawGrid(frameBuffer, currentRot * XtoY, 10.f, 5, purple, translationVector, proj);
-        DrawGrid(frameBuffer, currentRot * XtoZ, 10.f, 5, cyan, translationVector, proj);
+        DrawGrid(fragBuffer, currentRot, 10.f, 10, yellow, translationVector, proj);
+        DrawGrid(fragBuffer, currentRot * XtoY, 10.f, 5, purple, translationVector, proj);
+        DrawGrid(fragBuffer, currentRot * XtoZ, 10.f, 5, cyan, translationVector, proj);
 
     }// UI control for showing axis-aligned planes
 
     if(renderParameters->bezierEnabled)
     {// UI control for showing the Bezier curve
         //DrawBezier(frameBuffer, mvp, projectedPoints);
-        DrawBezierPatch(frameBuffer, clipPoints, 10.f, !renderParameters->orthoProjection);
+        DrawBezierPatch(fragBuffer, clipPoints, 10.f, !renderParameters->orthoProjection);
     }
+
+    std::sort(fragBuffer.frags.begin(), fragBuffer.frags.end(),
+     [](const Fragment& a, const Fragment& b) {return a.depth > b.depth;});
+    
+    for (const Fragment& f : fragBuffer.frags)
+        frameBuffer[f.y][f.x] = f.color;
+
 
     // Put the custom framebufer on the screen to display the image
     glDrawPixels(frameBuffer.width, frameBuffer.height, GL_RGBA, GL_UNSIGNED_BYTE, frameBuffer.block);

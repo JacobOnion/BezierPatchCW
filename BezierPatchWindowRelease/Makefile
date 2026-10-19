@@ -16,7 +16,7 @@ CC            = gcc
 CXX           = g++
 DEFINES       = -DQT_NO_DEBUG -DQT_OPENGLWIDGETS_LIB -DQT_WIDGETS_LIB -DQT_OPENGL_LIB -DQT_GUI_LIB -DQT_CORE_LIB
 CFLAGS        = -pipe -O2 -Wall -Wextra -D_REENTRANT $(DEFINES)
-CXXFLAGS      = -pipe -fopenmp -Wall -O2 -Wall -Wextra -D_REENTRANT $(DEFINES)
+CXXFLAGS      = -pipe -fopenmp -Wall -fopenmp -D_GLIBCXX_PARALLEL -O2 -Wall -Wextra -D_REENTRANT $(DEFINES)
 INCPATH       = -I. -I. -I/usr/include/qt6 -I/usr/include/qt6/QtOpenGLWidgets -I/usr/include/qt6/QtWidgets -I/usr/include/qt6/QtOpenGL -I/usr/include/qt6/QtGui -I/usr/include/qt6/QtCore -I. -I/usr/lib64/qt6/mkspecs/linux-g++
 QMAKE         = /usr/lib64/qt6/bin/qmake
 DEL_FILE      = rm -f
@@ -39,7 +39,7 @@ COMPRESS      = gzip -9f
 DISTNAME      = BezierPatchWindowRelease1.0.0
 DISTDIR = /uolstore/home/student_lnxhome01/sc23j2o/MASTERS/CW1/BezierPatchWindowRelease/BezierPatchWindowRelease/.tmp/BezierPatchWindowRelease1.0.0
 LINK          = g++
-LFLAGS        = -Wl,-O1 -Wl,-rpath-link,/usr/lib64
+LFLAGS        = -fopenmp -Wl,-O1 -Wl,-rpath-link,/usr/lib64
 LIBS          = $(SUBLIBS) -lGL -lGLU -fopenmp /usr/lib64/libQt6OpenGLWidgets.so /usr/lib64/libQt6Widgets.so /usr/lib64/libQt6OpenGL.so /usr/lib64/libQt6Gui.so /usr/lib64/libQt6Core.so -lpthread -lGLX -lOpenGL   
 AR            = ar cqs
 RANLIB        = 
@@ -778,7 +778,7 @@ compiler_moc_predefs_make_all: moc_predefs.h
 compiler_moc_predefs_clean:
 	-$(DEL_FILE) moc_predefs.h
 moc_predefs.h: /usr/lib64/qt6/mkspecs/features/data/dummy.cpp
-	g++ -pipe -fopenmp -Wall -O2 -Wall -Wextra -dM -E -o moc_predefs.h /usr/lib64/qt6/mkspecs/features/data/dummy.cpp
+	g++ -pipe -fopenmp -Wall -fopenmp -D_GLIBCXX_PARALLEL -O2 -Wall -Wextra -dM -E -o moc_predefs.h /usr/lib64/qt6/mkspecs/features/data/dummy.cpp
 
 compiler_moc_header_make_all: moc_ArcBallWidget.cpp moc_BezierPatchRenderWidget.cpp moc_RenderController.cpp moc_RenderWidget.cpp
 compiler_moc_header_clean:
@@ -805,6 +805,7 @@ moc_BezierPatchRenderWidget.cpp: BezierPatchRenderWidget.h \
 		RGBAValue.h \
 		RGBAImage.h \
 		Draw.hpp \
+		FragmentManager.hpp \
 		moc_predefs.h \
 		/usr/lib64/qt6/libexec/moc
 	/usr/lib64/qt6/libexec/moc $(DEFINES) --include /uolstore/home/student_lnxhome01/sc23j2o/MASTERS/CW1/BezierPatchWindowRelease/BezierPatchWindowRelease/moc_predefs.h -I/usr/lib64/qt6/mkspecs/linux-g++ -I/uolstore/home/student_lnxhome01/sc23j2o/MASTERS/CW1/BezierPatchWindowRelease/BezierPatchWindowRelease -I/uolstore/home/student_lnxhome01/sc23j2o/MASTERS/CW1/BezierPatchWindowRelease/BezierPatchWindowRelease -I/usr/include/qt6 -I/usr/include/qt6/QtOpenGLWidgets -I/usr/include/qt6/QtWidgets -I/usr/include/qt6/QtOpenGL -I/usr/include/qt6/QtGui -I/usr/include/qt6/QtCore -I/usr/include/c++/14 -I/usr/include/c++/14/x86_64-redhat-linux -I/usr/include/c++/14/backward -I/usr/lib/gcc/x86_64-redhat-linux/14/include -I/usr/local/include -I/usr/include BezierPatchRenderWidget.h -o moc_BezierPatchRenderWidget.cpp
@@ -825,6 +826,7 @@ moc_RenderController.cpp: RenderController.h \
 		BezierPatchRenderWidget.h \
 		RGBAImage.h \
 		Draw.hpp \
+		FragmentManager.hpp \
 		moc_predefs.h \
 		/usr/lib64/qt6/libexec/moc
 	/usr/lib64/qt6/libexec/moc $(DEFINES) --include /uolstore/home/student_lnxhome01/sc23j2o/MASTERS/CW1/BezierPatchWindowRelease/BezierPatchWindowRelease/moc_predefs.h -I/usr/lib64/qt6/mkspecs/linux-g++ -I/uolstore/home/student_lnxhome01/sc23j2o/MASTERS/CW1/BezierPatchWindowRelease/BezierPatchWindowRelease -I/uolstore/home/student_lnxhome01/sc23j2o/MASTERS/CW1/BezierPatchWindowRelease/BezierPatchWindowRelease -I/usr/include/qt6 -I/usr/include/qt6/QtOpenGLWidgets -I/usr/include/qt6/QtWidgets -I/usr/include/qt6/QtOpenGL -I/usr/include/qt6/QtGui -I/usr/include/qt6/QtCore -I/usr/include/c++/14 -I/usr/include/c++/14/x86_64-redhat-linux -I/usr/include/c++/14/backward -I/usr/lib/gcc/x86_64-redhat-linux/14/include -I/usr/local/include -I/usr/include RenderController.h -o moc_RenderController.cpp
@@ -886,6 +888,7 @@ BezierPatchRenderWidget.o: BezierPatchRenderWidget.cpp BezierPatchRenderWidget.h
 		RGBAValue.h \
 		RGBAImage.h \
 		Draw.hpp \
+		FragmentManager.hpp \
 		ArcBall.h
 	$(CXX) -c $(CXXFLAGS) $(INCPATH) -o BezierPatchRenderWidget.o BezierPatchRenderWidget.cpp
 
@@ -906,10 +909,12 @@ Draw.o: Draw.cpp Draw.hpp \
 		Matrix4.h \
 		Vector3.h \
 		Homogeneous4.h \
-		Quaternion.h
+		Quaternion.h \
+		FragmentManager.hpp
 	$(CXX) -c $(CXXFLAGS) $(INCPATH) -o Draw.o Draw.cpp
 
-FragmentManager.o: FragmentManager.cpp 
+FragmentManager.o: FragmentManager.cpp FragmentManager.hpp \
+		RGBAValue.h
 	$(CXX) -c $(CXXFLAGS) $(INCPATH) -o FragmentManager.o FragmentManager.cpp
 
 Homogeneous4.o: Homogeneous4.cpp Homogeneous4.h \
@@ -932,6 +937,7 @@ main.o: main.cpp RenderWindow.h \
 		BezierPatchRenderWidget.h \
 		RGBAImage.h \
 		Draw.hpp \
+		FragmentManager.hpp \
 		RenderController.h
 	$(CXX) -c $(CXXFLAGS) $(INCPATH) -o main.o main.cpp
 
@@ -968,7 +974,8 @@ RenderController.o: RenderController.cpp RenderController.h \
 		RGBAValue.h \
 		BezierPatchRenderWidget.h \
 		RGBAImage.h \
-		Draw.hpp
+		Draw.hpp \
+		FragmentManager.hpp
 	$(CXX) -c $(CXXFLAGS) $(INCPATH) -o RenderController.o RenderController.cpp
 
 RenderWidget.o: RenderWidget.cpp RenderWidget.h \
@@ -997,7 +1004,8 @@ RenderWindow.o: RenderWindow.cpp RenderWindow.h \
 		RGBAValue.h \
 		BezierPatchRenderWidget.h \
 		RGBAImage.h \
-		Draw.hpp
+		Draw.hpp \
+		FragmentManager.hpp
 	$(CXX) -c $(CXXFLAGS) $(INCPATH) -o RenderWindow.o RenderWindow.cpp
 
 RGBAImage.o: RGBAImage.cpp RGBAImage.h \

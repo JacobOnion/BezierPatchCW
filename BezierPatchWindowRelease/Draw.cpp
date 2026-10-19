@@ -85,7 +85,7 @@ Point3 GetProjectedPoint(Point3& point, float camOffset)
 }
 
 
-void DrawLine(RGBAImage& frameBuffer, const Point3& p0, const Point3& p1, RGBAValue& colour)
+void DrawLine(FragmentBuffer& fragBuffer, const Point3& p0, const Point3& p1, RGBAValue& colour)
 {
     // Convert coords from NDC to pixel space
     float x0 = (p0.x + 1) / 2;
@@ -94,10 +94,10 @@ void DrawLine(RGBAImage& frameBuffer, const Point3& p0, const Point3& p1, RGBAVa
     float y0 = (p0.y + 1) / 2;
     float y1 = (p1.y + 1) / 2;
 
-    x0 *= frameBuffer.width - 1;
-    y0 *= frameBuffer.height - 1;
-    x1 *= frameBuffer.width - 1;
-    y1 *= frameBuffer.height - 1;
+    x0 *= fragBuffer.width - 1;
+    y0 *= fragBuffer.height - 1;
+    x1 *= fragBuffer.width - 1;
+    y1 *= fragBuffer.height - 1;
 
 
     int dx = x1 - x0;
@@ -107,7 +107,8 @@ void DrawLine(RGBAImage& frameBuffer, const Point3& p0, const Point3& p1, RGBAVa
     {
         int x = round(x0);
         int y = round(y0);
-        frameBuffer[y][x] = colour;
+        //fragBuffer[y][x] = colour;
+        fragBuffer.Add(x, y, p0.z, colour);
         return;
     }
 
@@ -118,33 +119,34 @@ void DrawLine(RGBAImage& frameBuffer, const Point3& p0, const Point3& p1, RGBAVa
         float t = (float)i / steps;
         int x = round(x0 + t * dx);
         int y = round(y0 + t * dy);
-        if ( y >= frameBuffer.height || x >= frameBuffer.width)
+        if ( y >= fragBuffer.height || x >= fragBuffer.width)
             continue;
         if ( y < 0 || x < 0)
             continue;
-        frameBuffer[y][x] = colour;
+        //fragBuffer[y][x] = colour;
+        fragBuffer.Add(x, y, p0.z + t * (p1.z - p0.z), colour);
     }
 
 }
 
 
 // midpoint method for drawing filled circles
-void DrawCircle(RGBAImage& frameBuffer, Point3& origin, float radius, RGBAValue& colour)
+void DrawCircle(FragmentBuffer& fragBuffer, Point3& origin, float radius, RGBAValue& colour)
 {
     // Convert coords from NDC to pixel space
-    int x0 = round(((origin.x + 1) / 2) * frameBuffer.width - 1);
-    int y0 = round(((origin.y + 1) / 2) * frameBuffer.height - 1);
+    int x0 = round(((origin.x + 1) / 2) * fragBuffer.width - 1);
+    int y0 = round(((origin.y + 1) / 2) * fragBuffer.height - 1);
 
     int x = 0;
     int y = (int)round(radius);
     int d = 1 - radius;
 
     auto span = [&](int y, int left, int right) {
-        if (y < 0 || y >= frameBuffer.height) return;
+        if (y < 0 || y >= fragBuffer.height) return;
         left = max(left, 0);
-        right = min(right, (int)(frameBuffer.width - 1));
+        right = min(right, (int)(fragBuffer.width - 1));
         for (int i = left; i <= right; i++)
-            frameBuffer[y][i] = colour;
+            fragBuffer.Add(i, y, origin.z, colour);
     };
 
     while(x <= y) {
@@ -196,7 +198,7 @@ void DrawCircle(RGBAImage& frameBuffer, Point3& origin, float radius, RGBAValue&
 }
 
 
-void DrawGrid(RGBAImage& frameBuffer, const Matrix4& rot,float size, int segments, RGBAValue& colour, Vector3 transVector, const Matrix4& proj)
+void DrawGrid(FragmentBuffer& fragBuffer, const Matrix4& rot,float size, int segments, RGBAValue& colour, Vector3 transVector, const Matrix4& proj)
 {
 
     float segmentWidth = size / segments;
@@ -233,7 +235,7 @@ void DrawGrid(RGBAImage& frameBuffer, const Matrix4& rot,float size, int segment
             Homogeneous4 projYStart = proj * Homogeneous4(yStart);
             Homogeneous4 projYEnd = proj * Homogeneous4(yEnd);
             if (ClipNear(projYStart, projYEnd))
-                DrawLine(frameBuffer, projYStart.Point(), projYEnd.Point(), colour);
+                DrawLine(fragBuffer, projYStart.Point(), projYEnd.Point(), colour);
             yStart = yStart + xStep;
             yEnd = yEnd + xStep;
 
@@ -241,7 +243,7 @@ void DrawGrid(RGBAImage& frameBuffer, const Matrix4& rot,float size, int segment
             Homogeneous4 projXStart = proj * Homogeneous4(xStart);
             Homogeneous4 projXEnd = proj * Homogeneous4(xEnd);
             if (ClipNear(projXStart, projXEnd))
-                DrawLine(frameBuffer, projXStart.Point(), projXEnd.Point(), colour);
+                DrawLine(fragBuffer, projXStart.Point(), projXEnd.Point(), colour);
             xStart = xStart + yStep;
             xEnd = xEnd + yStep;
         }
@@ -298,61 +300,70 @@ static Homogeneous4 deCasteljau(Homogeneous4 p0, Homogeneous4 p1, Homogeneous4 p
     return (1.f - t) * d + t * e;
 }
 
-void DrawBezierPatch(RGBAImage& frameBuffer, std::vector<Homogeneous4>& points, float radius, bool perspective)
+void DrawBezierPatch(FragmentBuffer& fragBuffer, std::vector<Homogeneous4>& points, float radius, bool perspective)
 {
-    #pragma omp parallel for schedule(dynamic, 16)
-    for (int si = 0; si < 2500; si++)  // Consider dynamically setting sample count based on control net size
-    { // Paramtric loop
-        float s = si * 0.0004f;
-        Homogeneous4 q[4];
+    #pragma omp parallel
+    {
+        std::vector<Fragment> tempFrags;
         
-            for (int i = 0; i < 4; i++)
-            { // Get one bezier point per row
-                q[i] = deCasteljau(points[4*i], points[4*i+1], points[4*i+2], points[4*i+3], s);
-            }
-        for (int ti = 0; ti < 10000; ti++)
-        { // Parametric loop
-            float t = ti * 0.0001f;
-            // Blend the 4 rows to get the final point p
-            Homogeneous4 h = deCasteljau(q[0], q[1], q[2], q[3], t);
-
-            if (!perspective)
-                h.w = 1.f;
-
-            if (h.z + h.w < 0.f || h.w <= 0.f)
-                continue;
-
-            // if ( p.y >= frameBuffer.height || p.x >= frameBuffer.width)
-            //     continue;
-            // if ( p.y < 0 || p.x < 0)
-            //     continue;
+        #pragma omp for schedule(dynamic, 16) nowait
+        for (int si = 0; si < 1000; si++)  // Consider dynamically setting sample count based on control net size
+        { // Paramtric loop
+            float s = si * 0.001f;
+            Homogeneous4 q[4];
             
-            float ndc_x = h.x / h.w;
-            float ndc_y = h.y / h.w;
-            //float ndc_z = h.z / h.w;
+                for (int i = 0; i < 4; i++)
+                { // Get one bezier point per row
+                    q[i] = deCasteljau(points[4*i], points[4*i+1], points[4*i+2], points[4*i+3], s);
+                }
+            for (int ti = 0; ti < 2500; ti++)
+            { // Parametric loop
+                float t = ti * 0.0004f;
+                // Blend the 4 rows to get the final point p
+                Homogeneous4 h = deCasteljau(q[0], q[1], q[2], q[3], t);
 
-            int px = static_cast<int>((ndc_x + 1.0f) * 0.5f * frameBuffer.width);
-            int py = static_cast<int>((ndc_y + 1.0f) * 0.5f * frameBuffer.height); 
-            //std::cout << "pixel coords: " << px << ", " << py << std::endl;
-            // Screen-space boundary check
-            if (px < 0 || px >= frameBuffer.width || py < 0 || py >= frameBuffer.height)
-                continue;
+                if (!perspective)
+                    h.w = 1.f;
+
+                if (h.z + h.w < 0.f || h.w <= 0.f)
+                    continue;
+
+                // if ( p.y >= frameBuffer.height || p.x >= frameBuffer.width)
+                //     continue;
+                // if ( p.y < 0 || p.x < 0)
+                //     continue;
                 
-            RGBAValue pointCol = RGBAValue(t * 255.f, 127.5f, s * 255.f);
-            frameBuffer[py][px] = pointCol;
+                float ndc_x = h.x / h.w;
+                float ndc_y = h.y / h.w;
+                float ndc_z = h.z / h.w;
+
+                int px = static_cast<int>((ndc_x + 1.0f) * 0.5f * fragBuffer.width);
+                int py = static_cast<int>((ndc_y + 1.0f) * 0.5f * fragBuffer.height); 
+                //std::cout << "pixel coords: " << px << ", " << py << std::endl;
+                // Screen-space boundary check
+                if (px < 0 || px >= fragBuffer.width || py < 0 || py >= fragBuffer.height)
+                    continue;
+                    
+                RGBAValue pointCol = RGBAValue(t * 255.f, 127.5f, s * 255.f);
+                //frameBuffer[py][px] = pointCol;
+                tempFrags.push_back({px, py, ndc_z, pointCol});
 
 
-            // Point3 p = h.Point();
-            // float pointRad = radius;
-            // if (perspective)
-            //     pointRad = radius / h.w;
-            // else
-            //     pointRad /= 4.f;
+                // Point3 p = h.Point();
+                // float pointRad = radius;
+                // if (perspective)
+                //     pointRad = radius / h.w;
+                // else
+                //     pointRad /= 4.f;
 
-            // RGBAValue pointCol = RGBAValue(t*255.f, 127.5f, s*255.f);
-            // //frameBuffer[(int)p.y][(int)p.x] = pointCol;
-            // DrawCircle(frameBuffer, p, pointRad, pointCol);  // Drawing with circles means less iterations but bezier has thickness
+                // RGBAValue pointCol = RGBAValue(t*255.f, 127.5f, s*255.f);
+                // //frameBuffer[(int)p.y][(int)p.x] = pointCol;
+                // DrawCircle(frameBuffer, p, pointRad, pointCol);  // Drawing with circles means less iterations but bezier has thickness
+            }
         }
+        // change for encapsulation later
+        #pragma omp critical
+            fragBuffer.frags.insert(fragBuffer.frags.end(), tempFrags.begin(), tempFrags.end());
     }
 }
 

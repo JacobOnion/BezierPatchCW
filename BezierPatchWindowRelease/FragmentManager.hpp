@@ -16,6 +16,8 @@ struct FragmentBuffer {
     std::vector<Fragment> frags;
 
     void Add(int x, int y, float z, const RGBAValue& c);
+
+    void Clear();
 };
 
 #endif

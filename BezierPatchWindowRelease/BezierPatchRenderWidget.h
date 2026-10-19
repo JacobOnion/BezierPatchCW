@@ -30,6 +30,8 @@
 #include "RenderParameters.h"
 #include "RGBAImage.h"
 #include "Draw.hpp"
+#include "FragmentManager.hpp"
+#include <algorithm>
 
 #include "Matrix4.h"
 
