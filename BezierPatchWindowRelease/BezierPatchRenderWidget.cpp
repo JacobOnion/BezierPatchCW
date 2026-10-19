@@ -212,40 +212,6 @@ void BezierPatchRenderWidget::paintGL()
     z = mvp * z;
     circle1 = mvp * circle1;
     
-    // Apply rotations
-    /*x = currentRot * Vector3(x);
-    y = currentRot * Vector3(y);
-    z = currentRot * Vector3(z);
-    circle1 = currentRot * Vector3(circle1);
-
-    
-    origin = origin + translationVector;
-    x = x + translationVector;
-    y = y + translationVector;
-    z = z + translationVector;
-    circle1 = circle1+ translationVector;
-
-        
-    float camOffset = 1.4f;
-    
-    if (!renderParameters->orthoProjection)
-    {
-        //circle1.z += renderParameters->zTranslate - 1;
-        //ProjectPoint(circle1, camOffset);
-        ProjectPoint(origin, camOffset);
-        
-        ProjectPoint(x, camOffset);
-        ProjectPoint(y, camOffset);
-        ProjectPoint(z, camOffset);
-        
-        ProjectPoint(circle1, camOffset);
-    }*/
-    
-    //DrawLine(frameBuffer, origin, x, red);
-    //DrawLine(frameBuffer, origin, y, green);
-    //DrawLine(frameBuffer, origin, z, blue);
-    
-    //DrawCircle(frameBuffer, circle1, 5.f, blue);
 
     // Project vertices into clip space
     std::vector<Point3> projectedPoints;
@@ -260,10 +226,6 @@ void BezierPatchRenderWidget::paintGL()
     for(int i = 0 ; i < (*patchControlPoints).vertices.size(); i++)
     {
         Homogeneous4 vertexCoords = mvp * Homogeneous4(renderParameters->patchControlPoints->vertices[i]);
-        //std::cout << vertexCoords.w << std::endl;
-        //float radius = 20.f * ((2.f * 0.01f) / (aspectRatio * (10.f/renderParameters->zTranslate) - -aspectRatio * (10.f/renderParameters->zTranslate))) / vertexCoords.w;
-        //radius = radius * (frameBuffer.width / 2.f);
-        //float radius = 0.05f * (frameBuffer.height / vertexCoords.z);
         float radius = 0;
         // bit hacky, use different methods of calculating radii depending on which projection is being used
         if (renderParameters->orthoProjection)
@@ -381,7 +343,6 @@ void BezierPatchRenderWidget::paintGL()
     std::cout << "total frame time: " << frametimer.nsecsElapsed()/1e9 << "s" << std::endl;
     frametimer.restart();
 } // BezierPatchRenderWidget::paintGL()
-
 
 // mouse-handling
 void BezierPatchRenderWidget::mousePressEvent(QMouseEvent *event)

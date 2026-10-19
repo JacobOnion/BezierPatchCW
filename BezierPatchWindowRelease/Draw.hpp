@@ -1,6 +1,7 @@
 #pragma once
 
 #include <QOpenGLWidget>
+#include "omp.h"
 #include "math.h"
 
 #include "RGBAImage.h"

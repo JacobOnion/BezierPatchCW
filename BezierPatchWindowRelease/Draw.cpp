@@ -300,36 +300,58 @@ static Homogeneous4 deCasteljau(Homogeneous4 p0, Homogeneous4 p1, Homogeneous4 p
 
 void DrawBezierPatch(RGBAImage& frameBuffer, std::vector<Homogeneous4>& points, float radius, bool perspective)
 {
-    for (float s = 0; s < 1.f; s += 0.004f)
+    #pragma omp parallel for schedule(dynamic, 16)
+    for (int si = 0; si < 2500; si++)  // Consider dynamically setting sample count based on control net size
     { // Paramtric loop
+        float s = si * 0.0004f;
         Homogeneous4 q[4];
+        
             for (int i = 0; i < 4; i++)
             { // Get one bezier point per row
                 q[i] = deCasteljau(points[4*i], points[4*i+1], points[4*i+2], points[4*i+3], s);
             }
-        for (float t = 0; t < 1.f; t += 0.004f)
+        for (int ti = 0; ti < 10000; ti++)
         { // Parametric loop
+            float t = ti * 0.0001f;
             // Blend the 4 rows to get the final point p
             Homogeneous4 h = deCasteljau(q[0], q[1], q[2], q[3], t);
 
-            //if (h.z + h.w < 0.f || h.w <= 0.f)
-            //    continue;
+            if (!perspective)
+                h.w = 1.f;
+
+            if (h.z + h.w < 0.f || h.w <= 0.f)
+                continue;
 
             // if ( p.y >= frameBuffer.height || p.x >= frameBuffer.width)
             //     continue;
             // if ( p.y < 0 || p.x < 0)
             //     continue;
             
-            Point3 p = h.Point();
-            float pointRad = radius;
-            if (perspective)
-                pointRad = radius / h.w;
-            else
-                pointRad /= 4.f;
+            float ndc_x = h.x / h.w;
+            float ndc_y = h.y / h.w;
+            //float ndc_z = h.z / h.w;
 
-            RGBAValue pointCol = RGBAValue(t*255.f, 127.5f, s*255.f);
-            //frameBuffer[(int)p.y][(int)p.x] = pointCol;
-            DrawCircle(frameBuffer, p, pointRad, pointCol);  // Drawing with circles means less iterations but bezier has thickness
+            int px = static_cast<int>((ndc_x + 1.0f) * 0.5f * frameBuffer.width);
+            int py = static_cast<int>((ndc_y + 1.0f) * 0.5f * frameBuffer.height); 
+            //std::cout << "pixel coords: " << px << ", " << py << std::endl;
+            // Screen-space boundary check
+            if (px < 0 || px >= frameBuffer.width || py < 0 || py >= frameBuffer.height)
+                continue;
+                
+            RGBAValue pointCol = RGBAValue(t * 255.f, 127.5f, s * 255.f);
+            frameBuffer[py][px] = pointCol;
+
+
+            // Point3 p = h.Point();
+            // float pointRad = radius;
+            // if (perspective)
+            //     pointRad = radius / h.w;
+            // else
+            //     pointRad /= 4.f;
+
+            // RGBAValue pointCol = RGBAValue(t*255.f, 127.5f, s*255.f);
+            // //frameBuffer[(int)p.y][(int)p.x] = pointCol;
+            // DrawCircle(frameBuffer, p, pointRad, pointCol);  // Drawing with circles means less iterations but bezier has thickness
         }
     }
 }

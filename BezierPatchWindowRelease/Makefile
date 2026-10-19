@@ -57,6 +57,7 @@ SOURCES       = ArcBall.cpp \
 		BezierPatchRenderWidget.cpp \
 		ControlPoints.cpp \
 		Draw.cpp \
+		FragmentManager.cpp \
 		Homogeneous4.cpp \
 		main.cpp \
 		Matrix4.cpp \
@@ -76,6 +77,7 @@ OBJECTS       = ArcBall.o \
 		BezierPatchRenderWidget.o \
 		ControlPoints.o \
 		Draw.o \
+		FragmentManager.o \
 		Homogeneous4.o \
 		main.o \
 		Matrix4.o \
@@ -290,6 +292,7 @@ DIST          = /usr/lib64/qt6/mkspecs/features/spec_pre.prf \
 		BezierPatchRenderWidget.h \
 		ControlPoints.h \
 		Draw.hpp \
+		FragmentManager.hpp \
 		Homogeneous4.h \
 		Matrix4.h \
 		Point3.h \
@@ -305,6 +308,7 @@ DIST          = /usr/lib64/qt6/mkspecs/features/spec_pre.prf \
 		BezierPatchRenderWidget.cpp \
 		ControlPoints.cpp \
 		Draw.cpp \
+		FragmentManager.cpp \
 		Homogeneous4.cpp \
 		main.cpp \
 		Matrix4.cpp \
@@ -743,8 +747,8 @@ distdir: FORCE
 	@test -d $(DISTDIR) || mkdir -p $(DISTDIR)
 	$(COPY_FILE) --parents $(DIST) $(DISTDIR)/
 	$(COPY_FILE) --parents /usr/lib64/qt6/mkspecs/features/data/dummy.cpp $(DISTDIR)/
-	$(COPY_FILE) --parents ArcBall.h ArcBallWidget.h BezierPatchRenderWidget.h ControlPoints.h Draw.hpp Homogeneous4.h Matrix4.h Point3.h Quaternion.h RenderController.h RenderParameters.h RenderWidget.h RenderWindow.h RGBAImage.h RGBAValue.h Vector3.h $(DISTDIR)/
-	$(COPY_FILE) --parents ArcBall.cpp ArcBallWidget.cpp BezierPatchRenderWidget.cpp ControlPoints.cpp Draw.cpp Homogeneous4.cpp main.cpp Matrix4.cpp Point3.cpp Quaternion.cpp RenderController.cpp RenderWidget.cpp RenderWindow.cpp RGBAImage.cpp RGBAValue.cpp Vector3.cpp $(DISTDIR)/
+	$(COPY_FILE) --parents ArcBall.h ArcBallWidget.h BezierPatchRenderWidget.h ControlPoints.h Draw.hpp FragmentManager.hpp Homogeneous4.h Matrix4.h Point3.h Quaternion.h RenderController.h RenderParameters.h RenderWidget.h RenderWindow.h RGBAImage.h RGBAValue.h Vector3.h $(DISTDIR)/
+	$(COPY_FILE) --parents ArcBall.cpp ArcBallWidget.cpp BezierPatchRenderWidget.cpp ControlPoints.cpp Draw.cpp FragmentManager.cpp Homogeneous4.cpp main.cpp Matrix4.cpp Point3.cpp Quaternion.cpp RenderController.cpp RenderWidget.cpp RenderWindow.cpp RGBAImage.cpp RGBAValue.cpp Vector3.cpp $(DISTDIR)/
 
 
 clean: compiler_clean 
@@ -904,6 +908,9 @@ Draw.o: Draw.cpp Draw.hpp \
 		Homogeneous4.h \
 		Quaternion.h
 	$(CXX) -c $(CXXFLAGS) $(INCPATH) -o Draw.o Draw.cpp
+
+FragmentManager.o: FragmentManager.cpp 
+	$(CXX) -c $(CXXFLAGS) $(INCPATH) -o FragmentManager.o FragmentManager.cpp
 
 Homogeneous4.o: Homogeneous4.cpp Homogeneous4.h \
 		Point3.h \
