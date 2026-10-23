@@ -234,7 +234,6 @@ void DrawBezier(FragmentBuffer& fragBuffer, const Matrix4& mvp, std::vector<Poin
         if ( bezPoints[0][0].y < 0 || bezPoints[0][0].x < 0)
             continue;
         RGBAValue pointCol = RGBAValue(t*255.f, 127.5f, t*255.f);
-        //frameBuffer[(int)bezPoints[0][0].y][(int)bezPoints[0][0].x] = RGBAValue(t*255.f, 127.5f, t*255.f);
         fragBuffer.Add((int)bezPoints[0][0].x, (int)bezPoints[0][0].y, (int)bezPoints[0][0].z, pointCol);
     }
 }
