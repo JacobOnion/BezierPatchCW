@@ -81,6 +81,10 @@ class Matrix4
     
     // matrix transpose
     Matrix4 transpose() const;
+    // matrix invert
+    Matrix4 invert() const;
+
+    float determinant3() const;
     
     // returns a column-major array of 16 values
     // for use with OpenGL

@@ -68,8 +68,6 @@ int main(int argc, char **argv)
     // create a controller for the window
     RenderController renderController(&bezierPatch, &renderParameters, &renderWindow);
 
-    TestFunc();
-
     //  set the initial size
     renderWindow.resize(1600, 720);
 

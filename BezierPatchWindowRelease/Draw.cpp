@@ -3,24 +3,8 @@
 #include "Draw.hpp"
 using namespace std;
 
-void TestFunc() {
-    cout << "\nhello world\n";
 
-    printf("\nis this working\n");
-}
-
-
-Matrix4 MakePerspective(float camOffset)
-{
-    Matrix4 m;
-    m[0][0] = 1.f;
-    m[1][1] = 1.f;
-    m[2][2] = 1.f;
-    m[3][2] = 1.f;
-    m[3][3] = camOffset;
-    return m;
-}
-
+// Set up orthographic projection matrix
 Matrix4 MakeOrtho(double left, double right, double bottom, double top, double near_val, double far_val)
 {
     Matrix4 m;
@@ -33,6 +17,7 @@ Matrix4 MakeOrtho(double left, double right, double bottom, double top, double n
     return m;
 }
 
+// Set up perspective projection matrix
 Matrix4 MakeFrustum(double left, double right, double bottom, double top, double near_val, double far_val)
 {
     Matrix4 m;
@@ -67,24 +52,6 @@ bool ClipNear(Homogeneous4& a, Homogeneous4& b)
 }
 
 
-
-void ProjectPoint(Point3& point, float camOffset)
-{
-    
-    point.x /= (camOffset + point.z);
-    point.y /= (camOffset + point.z);
-    
-}
-
-Point3 GetProjectedPoint(Point3& point, float camOffset)
-{
-    Point3 returnPoint;
-    returnPoint.x = point.x / (camOffset + point.z);
-    returnPoint.y = point.y / (camOffset + point.z);
-    return returnPoint;
-}
-
-
 void DrawLine(FragmentBuffer& fragBuffer, const Point3& p0, const Point3& p1, RGBAValue& colour)
 {
     // Convert coords from NDC to pixel space
@@ -103,11 +70,11 @@ void DrawLine(FragmentBuffer& fragBuffer, const Point3& p0, const Point3& p1, RG
     int dx = x1 - x0;
     int dy = y1 - y0;
 
+    // Line is only 1 pixel
     if (dx == 0 && dy == 0)
     {
         int x = round(x0);
         int y = round(y0);
-        //fragBuffer[y][x] = colour;
         fragBuffer.Add(x, y, p0.z, colour);
         return;
     }
@@ -116,14 +83,15 @@ void DrawLine(FragmentBuffer& fragBuffer, const Point3& p0, const Point3& p1, RG
 
     for (int i = 0; i <= steps; i++)
     {
+        // interpolate line at t
         float t = (float)i / steps;
         int x = round(x0 + t * dx);
         int y = round(y0 + t * dy);
+        // Check if fragment is on screen
         if ( y >= fragBuffer.height || x >= fragBuffer.width)
             continue;
         if ( y < 0 || x < 0)
             continue;
-        //fragBuffer[y][x] = colour;
         fragBuffer.Add(x, y, p0.z + t * (p1.z - p0.z), colour);
     }
 
@@ -141,10 +109,13 @@ void DrawCircle(FragmentBuffer& fragBuffer, Point3& origin, float radius, RGBAVa
     int y = (int)round(radius);
     int d = 1 - radius;
 
+    
     auto span = [&](int y, int left, int right) {
+        // Only draw on screen parts of circle
         if (y < 0 || y >= fragBuffer.height) return;
         left = max(left, 0);
         right = min(right, (int)(fragBuffer.width - 1));
+
         for (int i = left; i <= right; i++)
             fragBuffer.Add(i, y, origin.z, colour);
     };
@@ -156,34 +127,11 @@ void DrawCircle(FragmentBuffer& fragBuffer, Point3& origin, float radius, RGBAVa
         int maxX = y0 + x;
         int minX = y0 - x;
 
+        // Draw each segment of the circle
         span(maxY, x0 - x, x0 + x);
         span(minY, x0 - x, x0 + x);
         span(maxX, x0 - y, x0 + y);
         span(minX, x0 - y, x0 + y);
-
-
-        /*if (minY >= 0 && minY < frameBuffer.height && maxY >= 0 && maxY < frameBuffer.height)
-        {
-            int left = max(0, x0-x);
-            int right = min((int)frameBuffer.width, x0+x);
-            for (int i = left; i < right; i++)
-            {
-                frameBuffer[maxY][i] = colour;
-                frameBuffer[minY][i] = colour;
-            }
-        }
-
-
-        if (minX >= 0 && minX < frameBuffer.height && maxX >= 0 && maxX < frameBuffer.height)
-        {
-            int left = max(0, x0-y);
-            int right = min((int)frameBuffer.width, x0+y);
-            for (int i = left; i < right; i++)
-            {
-                frameBuffer[maxX][i] = colour;
-                frameBuffer[minX][i] = colour;
-            }
-        }*/
 
 
         x++;
@@ -204,11 +152,10 @@ void DrawGrid(FragmentBuffer& fragBuffer, const Matrix4& rot,float size, int seg
     float segmentWidth = size / segments;
     float halfSize = size / 2.f;
 
-    //int x = (frameBuffer.width - 1) / 2 - planeSize / 2;
-    //int y = (frameBuffer.height - 1) / 2 - planeSize / 2;
     float x = -halfSize;
     float y = -halfSize;
-    
+
+    // Define starting points and transformations
     Point3 yStart = Point3(x, y, 0.f);
     Point3 yEnd = Point3(x, y + size, 0.f);
     
@@ -232,6 +179,7 @@ void DrawGrid(FragmentBuffer& fragBuffer, const Matrix4& rot,float size, int seg
 
     for (int i = 0; i <= segments; i++)
         {
+            // Project and draw points
             Homogeneous4 projYStart = proj * Homogeneous4(yStart);
             Homogeneous4 projYEnd = proj * Homogeneous4(yEnd);
             if (ClipNear(projYStart, projYEnd))
@@ -249,7 +197,7 @@ void DrawGrid(FragmentBuffer& fragBuffer, const Matrix4& rot,float size, int seg
         }
 }
 
-void DrawBezier(RGBAImage& frameBuffer, const Matrix4& mvp, std::vector<Point3> points)
+void DrawBezier(FragmentBuffer& fragBuffer, const Matrix4& mvp, std::vector<Point3> points)
 {
     RGBAValue red = RGBAValue(255.f, 0.f, 0.f);
 
@@ -257,8 +205,8 @@ void DrawBezier(RGBAImage& frameBuffer, const Matrix4& mvp, std::vector<Point3> 
     for (int i = 0; i < points.size(); i++)
     {
         std::cout << "projected point [" << i << "] " << points[i] << std::endl;
-        points[i].x = round(((points[i].x + 1) / 2) * frameBuffer.width - 1);
-        points[i].y = round(((points[i].y + 1) / 2) * frameBuffer.height - 1);
+        points[i].x = round(((points[i].x + 1) / 2) * fragBuffer.width - 1);
+        points[i].y = round(((points[i].y + 1) / 2) * fragBuffer.height - 1);
         std::cout << "pixel point [" << i << "] " << points[i] << std::endl;
     }
 
@@ -281,11 +229,13 @@ void DrawBezier(RGBAImage& frameBuffer, const Matrix4& mvp, std::vector<Point3> 
                 bezPoints[i][j] = bezPoints[i][j+1] * (1.0f-t) + bezPoints[i+1][j] * t;
             }
         }
-        if ( bezPoints[0][0].y >= frameBuffer.height || bezPoints[0][0].x >= frameBuffer.width)
+        if ( bezPoints[0][0].y >= fragBuffer.height || bezPoints[0][0].x >= fragBuffer.width)
             continue;
         if ( bezPoints[0][0].y < 0 || bezPoints[0][0].x < 0)
             continue;
-        frameBuffer[(int)bezPoints[0][0].y][(int)bezPoints[0][0].x] = RGBAValue(t*255.f, 127.5f, t*255.f);
+        RGBAValue pointCol = RGBAValue(t*255.f, 127.5f, t*255.f);
+        //frameBuffer[(int)bezPoints[0][0].y][(int)bezPoints[0][0].x] = RGBAValue(t*255.f, 127.5f, t*255.f);
+        fragBuffer.Add((int)bezPoints[0][0].x, (int)bezPoints[0][0].y, (int)bezPoints[0][0].z, pointCol);
     }
 }
 
@@ -328,79 +278,24 @@ void DrawBezierPatch(FragmentBuffer& fragBuffer, std::vector<Homogeneous4>& poin
                 if (h.z + h.w < 0.f || h.w <= 0.f)
                     continue;
 
-                // if ( p.y >= frameBuffer.height || p.x >= frameBuffer.width)
-                //     continue;
-                // if ( p.y < 0 || p.x < 0)
-                //     continue;
-                
                 float ndc_x = h.x / h.w;
                 float ndc_y = h.y / h.w;
                 float ndc_z = h.z / h.w;
-
+                
+                // Convert to pixel coords
                 int px = static_cast<int>((ndc_x + 1.0f) * 0.5f * fragBuffer.width);
                 int py = static_cast<int>((ndc_y + 1.0f) * 0.5f * fragBuffer.height); 
-                //std::cout << "pixel coords: " << px << ", " << py << std::endl;
+
                 // Screen-space boundary check
                 if (px < 0 || px >= fragBuffer.width || py < 0 || py >= fragBuffer.height)
                     continue;
                     
                 RGBAValue pointCol = RGBAValue(t * 255.f, 127.5f, s * 255.f);
-                //frameBuffer[py][px] = pointCol;
                 tempFrags.push_back({px, py, ndc_z, pointCol});
-
-
-                // Point3 p = h.Point();
-                // float pointRad = radius;
-                // if (perspective)
-                //     pointRad = radius / h.w;
-                // else
-                //     pointRad /= 4.f;
-
-                // RGBAValue pointCol = RGBAValue(t*255.f, 127.5f, s*255.f);
-                // //frameBuffer[(int)p.y][(int)p.x] = pointCol;
-                // DrawCircle(frameBuffer, p, pointRad, pointCol);  // Drawing with circles means less iterations but bezier has thickness
             }
         }
-        // change for encapsulation later
+        // insert the bezier fragments into the main fragment vector
         #pragma omp critical
             fragBuffer.frags.insert(fragBuffer.frags.end(), tempFrags.begin(), tempFrags.end());
     }
 }
-
-
-// void DrawBezierPatch(RGBAImage& frameBuffer, std::vector<Point3> points)
-// {
-//     RGBAValue red = RGBAValue(255.f, 0.f, 0.f);
-
-//     // NDC to pixel
-//     // for (int i = 0; i < points.size(); i++)
-//     // {
-//     //     std::cout << "projected point [" << i << "] " << points[i] << std::endl;
-//     //     points[i].x = round(((points[i].x + 1) / 2) * frameBuffer.width - 1);
-//     //     points[i].y = round(((points[i].y + 1) / 2) * frameBuffer.height - 1);
-//     //     std::cout << "pixel point [" << i << "] " << points[i] << std::endl;
-//     // }
-    
-//     for (float s = 0; s < 1.f; s += 0.005f)
-//     { // Paramtric loop
-//         for (float t = 0; t < 1.f; t += 0.005f)
-//         { // Parametric loop
-//             Point3 q[4];
-//             for (int i = 0; i < 4; i++)
-//             { // Get one bezier point per row
-//                 q[i] = deCasteljau(points[4*i], points[4*i+1], points[4*i+2], points[4*i+3], s);
-//             }
-//             // Blend the 4 rows to get the final point p
-//             Point3 p = deCasteljau(q[0], q[1], q[2], q[3], t);
-
-//             // if ( p.y >= frameBuffer.height || p.x >= frameBuffer.width)
-//             //     continue;
-//             // if ( p.y < 0 || p.x < 0)
-//             //     continue;
-                
-//             RGBAValue pointCol = RGBAValue(t*255.f, 127.5f, s*255.f);
-//             //frameBuffer[(int)p.y][(int)p.x] = pointCol;
-//             DrawCircle(frameBuffer, p, 3.f, pointCol);  // Drawing with circles means less iterations but bezier has thickness
-//         }
-//     }
-// }

@@ -103,13 +103,9 @@ void BezierPatchRenderWidget::paintGL()
     // (glDrawPixels then puts the frameBuffer on the screen
     //   to display the final image at the end of paintGL)
 
+    // Begin measuring frame time
     QElapsedTimer frametimer;
     frametimer.start();
-    //glMatrixMode(GL_MODELVIEW);
-    //glPushMatrix();
-    //glLoadIdentity();
-    //#pragma omp parallel
-    //{
 
     // clear the buffers we will write fragments to:
     frameBuffer.clear(renderParameters->theClearColor);
@@ -130,15 +126,6 @@ void BezierPatchRenderWidget::paintGL()
     glMatrixMode(GL_MODELVIEW);
     glPushMatrix();
     glLoadIdentity();
-    
-    //std::cout << "ready to begin new frame: " << frametimer.nsecsElapsed() / 1e6 << std::endl;
-
-    //if(renderParameters->triggerResize)
-    //{
-    //    this->resizeGL(renderParameters->windowWidth, renderParameters->windowHeight);
-    //}
-
-    //std::cout<< "triggerResize: " << renderParameters->triggerResize << std::endl;
 
 
     // setup mvp
@@ -150,9 +137,7 @@ void BezierPatchRenderWidget::paintGL()
 
     Vector3 translationVector = Vector3(renderParameters->xTranslate,
          renderParameters->yTranslate, renderParameters->zTranslate-9.f);
-    //translationVector = translationVector * 0.1f;
 
-    //std::cout << renderParameters->zTranslate << "\n" << std::endl;
     trans.SetTranslation(translationVector);
     
     // calculate aspect ratio
@@ -183,18 +168,10 @@ void BezierPatchRenderWidget::paintGL()
                       0.01, 200.0);
     }
     
+    // calculate model view projection matrix
     mvp = proj * trans * currentRot;
-
-    //std::cout << "model view matrix calculated: " << frametimer.nsecsElapsed()/1e6 << std::endl;
     
-
-    Point3 origin = Point3(0.f, 0.f, 0.f);
-    Point3 x = Point3(5.f, 0.f, 0.f);
-    Point3 y = Point3(0.f, 5.f, 0.f);
-    Point3 z = Point3(0.f, 0.f, 5.f);
-
-    Point3 circle1 = Point3(5.f, 5.f, 5.f);
-
+    // Define colours
     RGBAValue red = RGBAValue(255.f, 0.0f, 0.0f, 255.f);
     RGBAValue green = RGBAValue(0.f, 255.f, 0.f, 255.f);
     RGBAValue blue = RGBAValue(0.f, 0.f, 255.f, 255.f);
@@ -206,46 +183,29 @@ void BezierPatchRenderWidget::paintGL()
     RGBAValue grey = RGBAValue(191.25f, 191.25f, 191.25f);
 
 
-    //Matrix4 currentRot = renderParameters->rotationMatrix;
-    
-    origin = mvp * origin;
-    x = mvp * x;
-    y = mvp * y;
-    z = mvp * z;
-    circle1 = mvp * circle1;
-    
-
     // Project vertices into clip space
     std::vector<Point3> projectedPoints;
     std::vector<Homogeneous4> clipPoints;
     std::vector<int> pointRadii;
     
     float worldRadius = 1.25f;
+    // smaller radius needed if in perspective projection
     if (!renderParameters->orthoProjection)
         worldRadius /= 10.f;
     const float halfWidth = frameBuffer.width / 2.f;
 
     for(int i = 0 ; i < (*patchControlPoints).vertices.size(); i++)
     {
+        // Project vertices
         Homogeneous4 vertexCoords = mvp * Homogeneous4(renderParameters->patchControlPoints->vertices[i]);
         float radius = 0;
-        // bit hacky, use different methods of calculating radii depending on which projection is being used
+        // set radius depending on projection type
         if (renderParameters->orthoProjection)
             radius = (proj * Vector3(40.f, 0.f, 0.f)).x;
         else
             radius = worldRadius * proj[0][0] / vertexCoords.w * halfWidth;
         pointRadii.push_back(radius);
 
-
-        //if (vertexCoords[i].z + vertexCoords[i].w < 0.f)
-
-
-        /*if (vertexCoords.w < 0)
-        {
-            std::cout << vertexCoords.w << std::endl;
-            vertexCoords = vertexCoords * -1.f;
-        }*/
-        
         Point3 vertexPos = vertexCoords.Point();
         projectedPoints.push_back(vertexPos);
         clipPoints.push_back(vertexCoords);
@@ -269,14 +229,6 @@ void BezierPatchRenderWidget::paintGL()
             RGBAValue currentColour = grey;
             if (i == renderParameters->activeVertex)
                 currentColour = red;
-            
-            //Point3 vertexPos = mvp * renderParameters->patchControlPoints->vertices[i];
-            
-            //float radius = (proj * Vector3(40.f, 0.f, 0.f)).x;
-            //float radius = 40.f * 
-            //radius = 5.f;
-            //if (!renderParameters->orthoProjection)
-            //    radius /= 5.f;
 
             DrawCircle(fragBuffer, projectedPoints[i], pointRadii[i], currentColour); // Draw red circle
         }
@@ -313,6 +265,7 @@ void BezierPatchRenderWidget::paintGL()
         // Draw the flat plane (in brown)
         // Refer to RenderWidget.cpp for the precise colours.
 
+        // Setup grid rotation matrices
         Matrix4 XtoY = {1.f, 0.f, 0.f, 0.f,
                         0.f, 0.f, -1.f, 0.f,
                         0.f, 1.f, 0.f, 0.f,
@@ -339,6 +292,7 @@ void BezierPatchRenderWidget::paintGL()
         DrawBezierPatch(fragBuffer, clipPoints, 10.f, !renderParameters->orthoProjection);
     }
 
+    // parallel sort fragments based on depth to get the correct render order
     std::sort(fragBuffer.frags.begin(), fragBuffer.frags.end(),
      [](const Fragment& a, const Fragment& b) {return a.depth > b.depth;});
     

@@ -11,6 +11,7 @@
 #include "Quaternion.h"
 #include <limits>
 #include <math.h>
+#include <algorithm>
 
 // constructor - default to the zero matrix
 Matrix4::Matrix4()
@@ -159,6 +160,64 @@ Matrix4 Matrix4::transpose() const
     // return the result
     return transposeMatrix;
     } // transpose()
+
+Matrix4 Matrix4::invert() const
+{ //invert()
+    // Gauss-Jordan elimination
+    float a[4][8];
+    for (int row = 0; row < 4; row++)
+        for (int col = 0; col < 8; col++)
+            a[row][col] = (col < 4) ? coordinates[row][col] : (float)(col - 4 == row);
+ 
+    for (int col = 0; col < 4; col++)
+        {
+        // partial pivoting: find the row with the largest entry in this column
+        int pivot = col;
+        for (int row = col + 1; row < 4; row++)
+            if (fabs(a[row][col]) > fabs(a[pivot][col]))
+                pivot = row;
+ 
+        // singular matrix: return the zero matrix
+        if (fabs(a[pivot][col]) < 1e-12)
+            return Matrix4();
+ 
+        // swap the pivot row into place and scale it so the pivot is 1
+        for (int k = 0; k < 8; k++)
+            std::swap(a[col][k], a[pivot][k]);
+        float scale = 1.0f / a[col][col];
+        for (int k = 0; k < 8; k++)
+            a[col][k] *= scale;
+ 
+        // eliminate this column from every other row
+        for (int row = 0; row < 4; row++)
+            if (row != col)
+                {
+                float factor = a[row][col];
+                for (int k = 0; k < 8; k++)
+                    a[row][k] -= factor * a[col][k];
+                }
+        }
+ 
+    // the right half is the inverse
+    Matrix4 invertMatrix;
+    for (int row = 0; row < 4; row++)
+        for (int col = 0; col < 4; col++)
+            invertMatrix[row][col] = a[row][col + 4];
+ 
+    // return the result
+    return invertMatrix;
+}
+
+float Matrix4::determinant3() const
+{
+    float det;
+    det = coordinates[0][0] * (coordinates[1][1] * coordinates[2][2] - coordinates[1][2] * coordinates[2][1])
+         - coordinates[0][1] * (coordinates[1][0] * coordinates[2][2] - coordinates[1][2] * coordinates[2][0])
+         + coordinates[0][2] * (coordinates[1][0] * coordinates[2][1] - coordinates[1][1] * coordinates[2][0]);
+
+    return det;
+}
+
 
 
 void Matrix4::SetTranslation(const Vector3 &vector)
